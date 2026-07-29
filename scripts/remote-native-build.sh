@@ -129,11 +129,18 @@ export GIT_CONFIG_VALUE_0="Authorization: token $FORGE_TOKEN"
 if [ ! -d "$ROOT/fold-mirror.git" ]; then
     git init --bare -q "$ROOT/fold-mirror.git"
 fi
-if ! git -C "$ROOT/fold-mirror.git" cat-file -e "$PIN^{commit}" 2>/dev/null; then
-    git -C "$ROOT/fold-mirror.git" fetch -q "$FOLD_URL" '+refs/heads/*:refs/heads/*'
+# Always fetch, verbosely on retry, with one bounded backoff: a fresh fold
+# tip is the normal case for a release (pin bump merged moments earlier),
+# and a transient quiet-fetch miss here failed release #3's first attempt
+# (2026-07-29 06:36Z: "pin not reachable from forge heads" while the forge
+# demonstrably had the commit).
+if ! git -C "$ROOT/fold-mirror.git" fetch -q "$FOLD_URL" '+refs/heads/*:refs/heads/*'; then
+    echo "WARN: fold mirror fetch failed; retrying once in 10s" >&2
+    sleep 10
+    git -C "$ROOT/fold-mirror.git" fetch "$FOLD_URL" '+refs/heads/*:refs/heads/*'
 fi
 git -C "$ROOT/fold-mirror.git" cat-file -e "$PIN^{commit}" || {
-    echo "FAIL: fold pin $PIN not reachable from forge heads" >&2
+    echo "FAIL: fold pin $PIN not reachable from forge heads after fetch" >&2
     exit 1
 }
 if [ ! -d "$ROOT/tree/fold/.git" ]; then
