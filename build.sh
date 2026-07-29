@@ -105,26 +105,43 @@ copy_mirror_lambda_artifact() {
     rsync -a --delete "$mirror_lambda_dir"/ "$FOLD_DIR/target/lambda"/
 }
 
-if needs_docker_mirror; then
-    prepare_docker_mirror
+if [ -n "${SCHEMA_BUILD_REMOTE_HOST:-}" ]; then
+    # Deploy-path decision decision-schema-infra-deploy-path-native-x86-pc:
+    # run the identical container build on a native x86_64 Linux builder.
+    # The pin comes from the committed gitlink so the remote build cannot
+    # drift from what this checkout pins, even before submodule init.
+    echo ""
+    echo "=== Building Lambda zip (remote native x86_64: $SCHEMA_BUILD_REMOTE_HOST) ==="
+    FOLD_PIN="$(git -C "$SCRIPT_DIR" ls-tree HEAD fold | awk '{print $3}')"
+    if [ -z "$FOLD_PIN" ]; then
+        echo "ERROR: could not resolve fold submodule pin from git ls-tree" >&2
+        exit 1
+    fi
+    stage_started="$(schema_telemetry_stage_start build)"
+    BUILD_PROFILE="$PROFILE" "$SCRIPT_DIR/scripts/remote-native-build.sh" "$FOLD_PIN" "$FOLD_DIR"
+    schema_telemetry_stage_end build "$stage_started"
+else
+    if needs_docker_mirror; then
+        prepare_docker_mirror
+    fi
+
+    echo ""
+    echo "=== Building Lambda zip (Docker: amazonlinux:2023) ==="
+    stage_started="$(schema_telemetry_stage_start build)"
+    docker run --rm \
+        --platform linux/amd64 \
+        -v "$DOCKER_SCRIPT_DIR":/build/schema-infra \
+        -w /build/schema-infra/fold \
+        -e CARGO_HOME=/build/schema-infra/.docker-cache/cargo \
+        -e RUSTUP_HOME=/build/schema-infra/.docker-cache/rustup \
+        -e BUILD_PROFILE="$PROFILE" \
+        -e GH_PAT="${GH_PAT:-}" \
+        amazonlinux:2023 \
+        bash /build/schema-infra/scripts/lambda-container-build.sh
+    schema_telemetry_stage_end build "$stage_started"
+
+    copy_mirror_lambda_artifact
 fi
-
-echo ""
-echo "=== Building Lambda zip (Docker: amazonlinux:2023) ==="
-stage_started="$(schema_telemetry_stage_start build)"
-docker run --rm \
-    --platform linux/amd64 \
-    -v "$DOCKER_SCRIPT_DIR":/build/schema-infra \
-    -w /build/schema-infra/fold \
-    -e CARGO_HOME=/build/schema-infra/.docker-cache/cargo \
-    -e RUSTUP_HOME=/build/schema-infra/.docker-cache/rustup \
-    -e BUILD_PROFILE="$PROFILE" \
-    -e GH_PAT="${GH_PAT:-}" \
-    amazonlinux:2023 \
-    bash /build/schema-infra/scripts/lambda-container-build.sh
-schema_telemetry_stage_end build "$stage_started"
-
-copy_mirror_lambda_artifact
 
 # =============================================================
 # 3. Extract bootstrap.zip for CDK Code.fromAsset(...)
