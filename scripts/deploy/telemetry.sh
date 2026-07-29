@@ -14,7 +14,18 @@ schema_telemetry_json_escape() {
 }
 
 schema_telemetry_file() {
-  local file="${SCHEMA_DEPLOY_TELEMETRY_FILE:-target/deploy-telemetry/schema-deploy-telemetry.jsonl}"
+  # Watch-driven deploys run in ephemeral scratch checkouts; their telemetry
+  # must outlive the checkout for the ten-release terminal-proof evidence.
+  # Under a deploy runner (LASTGIT_DEPLOY_LOG_DIR set) default to a durable
+  # per-OID file; local/manual runs keep the in-tree default.
+  local file="${SCHEMA_DEPLOY_TELEMETRY_FILE:-}"
+  if [ -z "$file" ]; then
+    if [ -n "${LASTGIT_DEPLOY_LOG_DIR:-}" ]; then
+      file="${LASTGIT_DEPLOY_LOG_DIR}/telemetry/${LASTGIT_CI_OID:-adhoc}.jsonl"
+    else
+      file="target/deploy-telemetry/schema-deploy-telemetry.jsonl"
+    fi
+  fi
   mkdir -p "$(dirname "$file")"
   printf '%s' "$file"
 }

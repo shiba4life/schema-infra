@@ -34,7 +34,7 @@ export LAMBDA_DIR="${LAMBDA_DIR:-/build/schema-infra/fold/target/lambda}"
 # value after proving their platform does not exhibit the QEMU deadlock.
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}"
 
-yum install -y gcc gcc-c++ cmake3 openssl-devel pkg-config tar gzip bzip2-libs perl git > /dev/null 2>&1
+yum install -y gcc gcc-c++ cmake3 openssl-devel pkg-config tar gzip bzip2-libs perl git python3 > /dev/null 2>&1
 
 # Cargo needs to fetch private cross-repo git deps (e.g. exemem_common
 # from EdgeVector/exemem-infra). Conditional on GH_PAT so local builds
@@ -111,4 +111,27 @@ cargo lambda build \
     --locked \
     -p schema_service_server_lambda \
     --features fastembed
+
+# Repack at maximum deflate. cargo-lambda zips at the default level; the
+# bootstrap binary is already stripped, so the remaining budget lever with
+# zero runtime-behavior risk is compression (North Star bar: zip < 15 MiB).
+ZIP_OUT="$LAMBDA_DIR/server_lambda/bootstrap.zip"
+if [ -f "$ZIP_OUT" ]; then
+    python3 - "$ZIP_OUT" <<'PY'
+import os, sys, zipfile
+src = sys.argv[1]
+tmp = src + ".repack"
+with zipfile.ZipFile(src) as zin, \
+     zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zout:
+    for info in zin.infolist():
+        zout.writestr(info, zin.read(info.filename))
+before, after = os.path.getsize(src), os.path.getsize(tmp)
+if after < before:
+    os.replace(tmp, src)
+    print(f"repacked bootstrap.zip: {before} -> {after} bytes")
+else:
+    os.remove(tmp)
+    print(f"repack not smaller ({before} -> {after}); keeping original")
+PY
+fi
 chmod -R a+rwX "$LAMBDA_DIR" 2>/dev/null || true
