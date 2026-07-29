@@ -152,6 +152,10 @@ if [ "$KIND" = "code-only" ]; then
   NEW_VER="$PROD_NEW_VER"
 else
   # ---------- INFRASTRUCTURE: CDK with the prebuilt artifact ----------
+  # CDK reads two assets: the extracted Lambda zip (materialized by
+  # ensure-artifact) and the fastembed model Layer. A fresh scratch has no
+  # layer yet — materialize it before --skip-build (release #2's failure).
+  bash scripts/deploy/ensure-layer.sh
   echo "== STAGE 1: deploy DEV (CDK, prebuilt artifact) =="
   export AWS_REGION=us-west-2 AWS_DEFAULT_REGION=us-west-2
   stage_started="$(schema_telemetry_stage_start dev_deploy)"
