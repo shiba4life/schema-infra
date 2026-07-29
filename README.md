@@ -20,6 +20,28 @@ This project contains everything needed to deploy the global schema registry for
 - **API Gateway**: HTTP API with CORS and custom domain support
 - **Frontend**: Web UI for browsing schemas
 
+## Release planes
+
+Every merge to `main` is classified by `scripts/deploy/classify-change.sh`
+(design: design-schema-lambda-fast-deployment) and takes one of three paths
+through `.lastgit/deploy-pipeline.sh`:
+
+- **code-only** — the fold submodule pin changed, CDK inputs did not. The
+  prebuilt, digest-verified artifact is published via the AWS CLI
+  (`update-function-code` → CodeSha256 gate → `publish-version` → `live`
+  alias / weighted prod canary). No CDK, no compilation in the release path.
+- **infrastructure** — CDK, deploy machinery, or layer inputs changed. CDK
+  deploys referencing the prebuilt artifact; Rust is never compiled inside
+  the CDK path.
+- **no-impact** — docs/tests/proofs/frontend only. The deploy is skipped
+  with an explicit successful reason.
+
+Artifacts are built once per input digest on the native x86_64 builder
+(`scripts/remote-native-build.sh`) into a content-addressed store with a
+secret-free manifest; pending main events coalesce to the newest eligible
+tip before any expensive work. Evidence for the North Star terminal proof
+is collected by `scripts/proof/schema-lambda-fast-deployment/collect.py`.
+
 ## Architecture
 
 The schema service runs as a single Lambda function with two storage layers:
