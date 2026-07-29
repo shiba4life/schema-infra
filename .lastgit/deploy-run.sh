@@ -13,6 +13,10 @@ TIMEOUT_MS="${LASTGIT_DEPLOY_TIMEOUT_MS:-$DEFAULT_TIMEOUT_MS}"
 # falling back to the retired TCP/code-node route.
 export LASTGIT_SOCKET="${LASTGIT_SOCKET:-$HOME/.lastdb/data/folddb.sock}"
 export LASTGIT_SCHEMA_MAP="${LASTGIT_SCHEMA_MAP:-$HOME/.lastgit/schema-map.json}"
+# Deploy-path decision decision-schema-infra-deploy-path-native-x86-pc:
+# the Lambda build runs on the native x86_64 builder by default. Set
+# SCHEMA_BUILD_REMOTE_HOST="" to force the legacy local QEMU path.
+export SCHEMA_BUILD_REMOTE_HOST="${SCHEMA_BUILD_REMOTE_HOST-pc}"
 # docker + cargo tooling must be on PATH for launchd (minimal default PATH).
 # Prefer the installed LastGit CLI so deploy status writes use the same
 # HashRange-compatible client path as the primary forge supervisor.
