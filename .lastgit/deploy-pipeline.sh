@@ -45,6 +45,26 @@ command -v curl >/dev/null || { echo "FAIL: curl missing" >&2; exit 1; }
 aws sts get-caller-identity --query Account --output text >/dev/null
 echo "AWS identity OK"
 
+# ---------- 0a. Coalesce to the newest eligible tip ----------
+# Design §4: pending main events coalesce to the newest deploy-relevant tip
+# before expensive work; obsolete intermediate tips must not each consume the
+# serialized lane. This check runs BEFORE any build or AWS mutation, so it can
+# never interrupt a prod alias change. Fail-open: if the tip cannot be
+# resolved (node busy), deploy this event normally.
+if [ "${SCHEMA_DEPLOY_SKIP_COALESCE:-}" != "1" ]; then
+  TIP_OID=""
+  if timeout 120 git fetch -q origin refs/heads/main 2>/dev/null; then
+    TIP_OID="$(git rev-parse FETCH_HEAD 2>/dev/null || true)"
+  fi
+  if [ -n "$TIP_OID" ] && [ "$TIP_OID" != "$OID" ] && \
+     git merge-base --is-ancestor "$OID" "$TIP_OID" 2>/dev/null; then
+    schema_telemetry_emit release_row "oid=$OID" "kind=superseded" \
+      "skipped_deploy=true" "superseded_by=$TIP_OID"
+    echo "lastgit schema deploy-pipeline PASSED (superseded by newest tip $TIP_OID — coalesced)"
+    exit 0
+  fi
+fi
+
 # ---------- 0. Classify the change ----------
 LAST_OID_FILE="${STATE_DIR}/last-deployed-oid"
 BASE_OID=""
