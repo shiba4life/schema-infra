@@ -23,6 +23,8 @@ echo "== canary helper tests =="
 bash scripts/deploy/test-canary-weight-pin.sh
 bash scripts/deploy/test-canary-alarm-gate.sh
 bash scripts/deploy/test-prove-mutation-gate.sh
+echo "== release classifier tests =="
+bash scripts/deploy/test-classify-change.sh
 echo "== terminal proof harness =="
 bash tests/proof/schema-lambda-fast-deployment/test-prove.sh
 echo "== npm/cdk compile =="
