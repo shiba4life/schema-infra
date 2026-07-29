@@ -33,6 +33,26 @@ export LAMBDA_DIR="${LAMBDA_DIR:-/build/schema-infra/fold/target/lambda}"
 # the Lambda build serial by default; native runners can explicitly raise the
 # value after proving their platform does not exhibit the QEMU deadlock.
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}"
+# Size + speed for the shipped Lambda: fat LTO with one codegen unit shrinks
+# the (already stripped) binary well under the 15 MiB zip budget and improves
+# runtime, at link-time cost the native x86_64 builder absorbs. Appended to
+# the BUILD-SIDE fold workspace manifest (this checkout is disposable build
+# input, never committed): manifest profiles are the only override cargo is
+# guaranteed to honor here — both CARGO_PROFILE_* env and a CARGO_HOME
+# config profile were measured as 0.2s no-ops through the cargo-lambda
+# invocation. Idempotent via marker. (Deflate-9 repack: ~1KB no-op;
+# cargo-lambda already packs tightly.)
+FOLD_MANIFEST="/build/schema-infra/fold/Cargo.toml"
+if ! grep -q "^# schema-lambda-size-profile" "$FOLD_MANIFEST" 2>/dev/null; then
+    cat >> "$FOLD_MANIFEST" <<'CFG'
+
+# schema-lambda-size-profile (appended at build time by
+# scripts/lambda-container-build.sh; never committed to fold)
+[profile.release]
+lto = "fat"
+codegen-units = 1
+CFG
+fi
 
 yum install -y gcc gcc-c++ cmake3 openssl-devel pkg-config tar gzip bzip2-libs perl git python3 > /dev/null 2>&1
 
