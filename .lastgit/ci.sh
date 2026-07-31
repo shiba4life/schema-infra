@@ -20,6 +20,7 @@ for f in ./*.sh .lastgit/*.sh scripts/*.sh scripts/deploy/*.sh \
   bash -n "$f"
 done
 echo "== canary helper tests =="
+bash scripts/deploy/test-code-publish.sh
 bash scripts/deploy/test-canary-weight-pin.sh
 bash scripts/deploy/test-canary-alarm-gate.sh
 bash scripts/deploy/test-prove-mutation-gate.sh
