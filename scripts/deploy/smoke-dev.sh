@@ -137,6 +137,53 @@ case "$code" in
   *) echo "FAIL /v1/schemas/mutation-challenge HTTP $code"; fail=1 ;;
 esac
 
+# Public app shelf (lastdb app list). Lambda returns the promoted, non-revoked
+# array. APIGW `{"message":"Not Found"}` means GET was never mounted on /v1/apps
+# (POST-only was the long-standing bug after fold #682).
+code=$(curl -sS -m 20 -o /tmp/schema-apps-list.out -w "%{http_code}" \
+  "${API_URL}/v1/apps" || echo 000)
+body=$(cat /tmp/schema-apps-list.out 2>/dev/null || true)
+case "$code" in
+  200)
+    if echo "$body" | grep -q '\['; then
+      echo "OK   /v1/apps HTTP 200 (public shelf mounted)"
+    else
+      echo "FAIL /v1/apps: HTTP 200 but body is not a JSON array: $(echo "$body" | cut -c1-120)"
+      fail=1
+    fi
+    ;;
+  404)
+    if echo "$body" | grep -q '"message"[[:space:]]*:[[:space:]]*"Not Found"'; then
+      echo "FAIL /v1/apps HTTP 404 APIGW missing-route (mount GET on /v1/apps)"
+    else
+      echo "FAIL /v1/apps HTTP 404 body=$(echo "$body" | cut -c1-120)"
+    fi
+    fail=1
+    ;;
+  *) echo "FAIL /v1/apps HTTP $code body=$(echo "$body" | cut -c1-120)"; fail=1 ;;
+esac
+
+# PUT /v1/apps/{app_id} must reach Lambda (cert-gated), not APIGW 404.
+# Empty body without cert → Lambda 401/400; never gateway {"message":"Not Found"}.
+code=$(curl -sS -m 20 -o /tmp/schema-apps-put.out -w "%{http_code}" \
+  -X PUT "${API_URL}/v1/apps/__smoke_missing_app__" \
+  -H 'Content-Type: application/json' -d '{}' || echo 000)
+body=$(cat /tmp/schema-apps-put.out 2>/dev/null || true)
+case "$code" in
+  400|401|404)
+    if [ "$code" = "404" ] && echo "$body" | grep -q '"message"[[:space:]]*:[[:space:]]*"Not Found"'; then
+      echo "FAIL PUT /v1/apps/{app_id} HTTP 404 APIGW missing-route (mount PUT)"
+      fail=1
+    else
+      echo "OK   PUT /v1/apps/{app_id} HTTP $code (mounted; Lambda auth/validation)"
+    fi
+    ;;
+  *)
+    echo "FAIL PUT /v1/apps/{app_id} HTTP $code body=$(echo "$body" | cut -c1-120)"
+    fail=1
+    ;;
+esac
+
 # Anthropic env must be gone on the live function
 FN=$(aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" \
   --query 'Stacks[0].Outputs[?OutputKey==`SchemaServiceFunctionName`].OutputValue' --output text)
