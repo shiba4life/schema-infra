@@ -43,3 +43,4 @@ schema_service/target/
 # Workspace fold_db is bind-mounted into this path by build.sh inside
 # Docker; suppress any host-side directory that docker may leave behind.
 fold_db/
+.portal-worktree

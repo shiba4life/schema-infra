@@ -514,14 +514,20 @@ exports.handler = async (event) => {
         integrationId: "SnapshotSharedOnlyExportIntegrationV1",
       },
       // App identity v3.1 — required for owner_app_id publish gate.
+      //
+      // GET /v1/apps is the public promoted-app shelf (`lastdb app list`).
+      // Lambda has implemented it since fold #682 (list_live_apps); without
+      // this method on the gateway, clients see APIGW `{"message":"Not Found"}`
+      // while GET /v1/apps/{id} still works. Same class of bug as #102.
+      // PUT /v1/apps/{app_id} is owner metadata update (cert-gated in Lambda).
       {
         path: "/v1/apps",
-        methods: [apigwv2.HttpMethod.POST],
+        methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST],
         integrationId: "AppRegisterIntegrationV1",
       },
       {
         path: "/v1/apps/{app_id}",
-        methods: [apigwv2.HttpMethod.GET],
+        methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.PUT],
         integrationId: "AppGetIntegrationV1",
       },
       {
