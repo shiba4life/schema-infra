@@ -52,6 +52,7 @@ case "$CMD" in
     <key>LASTGIT_DEPLOY_CONTEXT</key><string>deploy-pipeline</string>
     <key>LASTGIT_DEPLOY_LOG_DIR</key><string>${LOG_DIR}</string>
     <key>AWS_PROFILE</key><string>${AWS_PROFILE:-default}</string>
+    <key>SCHEMA_BUILD_REMOTE_HOST</key><string>${SCHEMA_BUILD_REMOTE_HOST:-pc}</string>
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
