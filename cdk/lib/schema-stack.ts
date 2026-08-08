@@ -535,6 +535,28 @@ exports.handler = async (event) => {
         methods: [apigwv2.HttpMethod.POST],
         integrationId: "AppPromoteIntegrationV1",
       },
+      // Declared fields (brain `design-lastdb-declared-fields`). An app
+      // declares a field, gets a handle, and reuses it across schemas so their
+      // data stays in step.
+      //
+      // Third place a `/v1/*` route must be registered, after the actix table
+      // (`server_http::configure_routes`) and the Lambda's own match router
+      // (`server_lambda/src/main.rs`). Missing here yields APIGW
+      // `{"message":"Not Found"}` even though the Lambda implements the route
+      // — the same class of bug as #102 and as the GET /v1/apps note above.
+      //
+      // The literal `/declare` path and the `{declaration_id}` variable path
+      // coexist: API Gateway prefers the more specific literal segment.
+      {
+        path: "/v1/fields/declare",
+        methods: [apigwv2.HttpMethod.POST],
+        integrationId: "FieldDeclareIntegrationV1",
+      },
+      {
+        path: "/v1/fields/{declaration_id}",
+        methods: [apigwv2.HttpMethod.GET],
+        integrationId: "FieldGetIntegrationV1",
+      },
     ];
 
     for (const route of v1Routes) {
