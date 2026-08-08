@@ -1,9 +1,14 @@
 {
-  "SchemaServiceStack-prod": {
-    "SchemaServiceDomainTarget": "d-qfws5xogl6.execute-api.us-east-1.amazonaws.com",
-    "SchemaServiceFunctionName": "SchemaServiceStack-prod-SchemaServiceFnDF75D4BE-58KcDYig68xw",
-    "SchemasTableName": "SchemaServiceStack-prod-SchemasTable1DC069C3-1N7DRM36UYX9L",
-    "SchemaServiceApiUrl": "https://axo709qs11.execute-api.us-east-1.amazonaws.com",
-    "SchemaServiceDomain": "schema.folddb.com"
+  "SchemaServiceStack-dev": {
+    "MutationGateQuotaTableName": "schema-mutation-gate-quotas-dev",
+    "SchemaServiceFunctionName": "SchemaServiceStack-dev-SchemaServiceFnDF75D4BE-zkQrXKDzPgY3",
+    "MutationGateInternalErrorAlarmName": "schema-mutation-gate-internal-error-dev",
+    "SchemaServiceBucketName": "schema-service-dev-152335099025",
+    "SchemaServiceApiUrl": "https://y0q3m6vk75.execute-api.us-west-2.amazonaws.com",
+    "SchemaServiceLiveAliasName": "SchemaServiceStack-dev-SchemaServiceFnDF75D4BE-zkQrXKDzPgY3:live",
+    "MutationGateHourlyQuotaAlarmName": "schema-mutation-gate-hourly-quota-dev",
+    "MutationGateDashboardName": "schema-mutation-gate-dev",
+    "MutationGateDashboardUrl": "https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards:name=schema-mutation-gate-dev",
+    "MutationGateHmacSecretName": "SchemaMutationGateHmacSecre-H0dZABYSpWro"
   }
 }
