@@ -24,6 +24,9 @@ bash scripts/deploy/test-code-publish.sh
 bash scripts/deploy/test-canary-weight-pin.sh
 bash scripts/deploy/test-canary-alarm-gate.sh
 bash scripts/deploy/test-prove-mutation-gate.sh
+echo "== compile-recipe tests =="
+bash scripts/deploy/test-lambda-container-build.sh
+bash scripts/deploy/test-artifact-digest.sh
 echo "== release classifier tests =="
 bash scripts/deploy/test-classify-change.sh
 echo "== terminal proof harness =="

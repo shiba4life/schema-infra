@@ -23,6 +23,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$SCRIPT_DIR"
 # shellcheck source=scripts/deploy/telemetry.sh
 source "$SCRIPT_DIR/scripts/deploy/telemetry.sh"
+# shellcheck source=scripts/deploy/artifact-digest.sh
+source "$SCRIPT_DIR/scripts/deploy/artifact-digest.sh"
 
 PROFILE="${BUILD_PROFILE:-release}"
 STORE="${SCHEMA_ARTIFACT_STORE:-$HOME/.lastgit/deploy-schema-infra/artifacts}"
@@ -42,9 +44,9 @@ if [ -z "$FOLD_PIN" ]; then
 fi
 RECIPE_SHA="$(sha256_file scripts/lambda-container-build.sh)"
 DRIVER_SHA="$(sha256_file scripts/remote-native-build.sh)"
-INPUT_DIGEST="$(printf 'fold=%s\nrecipe=%s\ndriver=%s\nprofile=%s\n' \
-    "$FOLD_PIN" "$RECIPE_SHA" "$DRIVER_SHA" "$PROFILE" | \
-    { shasum -a 256 2>/dev/null || sha256sum; } | awk '{print $1}')"
+LIB_SHA="$(sha256_file scripts/lambda-container-build-lib.sh)"
+BUILDER_SHA="$(sha256_file scripts/ensure-builder-image.sh)"
+INPUT_DIGEST="$(schema_infra_input_digest "$SCRIPT_DIR" "$FOLD_PIN" "$PROFILE")"
 
 DIGEST_DIR="$STORE/$INPUT_DIGEST"
 ZIP_CACHED="$DIGEST_DIR/bootstrap.zip"
@@ -77,6 +79,8 @@ emit_manifest() {
   "fold_oid": "$FOLD_PIN",
   "build_recipe_sha256": "$RECIPE_SHA",
   "build_driver_sha256": "$DRIVER_SHA",
+  "build_lib_sha256": "$LIB_SHA",
+  "build_builder_sha256": "$BUILDER_SHA",
   "profile": "$PROFILE",
   "artifact_sha256_hex": "$zip_sha",
   "artifact_code_sha256_b64": "$zip_b64",

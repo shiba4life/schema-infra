@@ -40,7 +40,7 @@ REPO_DIR="${3:-.}"
 # Deploy machinery, CDK app, and layer inputs: the CDK/infrastructure plane.
 is_infrastructure_path() {
     case "$1" in
-        cdk/*|deploy.sh|build.sh|.lastgit/*|scripts/deploy/*|scripts/lambda-container-build.sh|scripts/remote-native-build.sh)
+        cdk/*|deploy.sh|build.sh|.lastgit/*|scripts/deploy/*|scripts/lambda-container-build.sh|scripts/lambda-container-build-lib.sh|scripts/remote-native-build.sh|scripts/ensure-builder-image.sh)
             return 0 ;;
     esac
     return 1

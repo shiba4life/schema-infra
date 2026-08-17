@@ -133,8 +133,9 @@ else
     fi
 
     echo ""
-    echo "=== Building Lambda zip (Docker: amazonlinux:2023) ==="
+    echo "=== Building Lambda zip (Docker: schema-infra-lambda-builder) ==="
     stage_started="$(schema_telemetry_stage_start build)"
+    BUILDER_IMAGE="$(bash "$SCRIPT_DIR/scripts/ensure-builder-image.sh")"
     docker run --rm \
         --platform linux/amd64 \
         -v "$DOCKER_SCRIPT_DIR":/build/schema-infra \
@@ -143,7 +144,7 @@ else
         -e RUSTUP_HOME=/build/schema-infra/.docker-cache/rustup \
         -e BUILD_PROFILE="$PROFILE" \
         -e GH_PAT="${GH_PAT:-}" \
-        amazonlinux:2023 \
+        "$BUILDER_IMAGE" \
         bash /build/schema-infra/scripts/lambda-container-build.sh
     schema_telemetry_stage_end build "$stage_started"
 
