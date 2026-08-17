@@ -166,12 +166,13 @@ chmod 600 "$ENV_FILE"
 } > "$ENV_FILE"
 
 echo "== container build (native x86_64, jobs=$JOBS, timeout=${BUILD_TIMEOUT_S}s) =="
+IMAGE="$(bash "$ROOT/tree/scripts/ensure-builder-image.sh")"
 timeout "$BUILD_TIMEOUT_S" docker run --rm \
     --platform linux/amd64 \
     -v "$ROOT/tree":/build/schema-infra \
     -w /build/schema-infra/fold \
     --env-file "$ENV_FILE" \
-    amazonlinux:2023 \
+    "$IMAGE" \
     bash /build/schema-infra/scripts/lambda-container-build.sh
 
 ZIP="$ROOT/tree/fold/target/lambda/server_lambda/bootstrap.zip"

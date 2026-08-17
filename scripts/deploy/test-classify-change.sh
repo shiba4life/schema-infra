@@ -98,4 +98,14 @@ expect "empty-diff" no-impact "$C7" "$C7"
 # 9. unknown base OID → infrastructure (conservative)
 expect "unknown-base" infrastructure deadbeefdeadbeefdeadbeefdeadbeefdeadbeef "$C7"
 
+# 10. compile-recipe helpers → infrastructure (they change the artifact)
+mkdir -p "$REPO/scripts"
+echo lib > "$REPO/scripts/lambda-container-build-lib.sh"
+C8="$(commit_all recipe-lib)"
+expect "recipe-lib" infrastructure "$C7" "$C8"
+
+echo img > "$REPO/scripts/ensure-builder-image.sh"
+C9="$(commit_all builder-image)"
+expect "builder-image" infrastructure "$C8" "$C9"
+
 echo "ok classify-change tests"

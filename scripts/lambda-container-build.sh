@@ -14,6 +14,10 @@
 # this block). A real file has no such hazard and is shellcheck-able.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lambda-container-build-lib.sh
+source "$SCRIPT_DIR/lambda-container-build-lib.sh"
+
 # Defensively bind the env this script depends on. The docker run passes
 # these via -e, but they were observed UNBOUND inside the container
 # 2026-06-12 (set -u tripped on CARGO_HOME). An unbound CARGO_HOME makes
@@ -33,28 +37,17 @@ export LAMBDA_DIR="${LAMBDA_DIR:-/build/schema-infra/fold/target/lambda}"
 # the Lambda build serial by default; native runners can explicitly raise the
 # value after proving their platform does not exhibit the QEMU deadlock.
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}"
-# Size + speed for the shipped Lambda: fat LTO with one codegen unit shrinks
-# the (already stripped) binary well under the 15 MiB zip budget and improves
-# runtime, at link-time cost the native x86_64 builder absorbs. Appended to
-# the BUILD-SIDE fold workspace manifest (this checkout is disposable build
-# input, never committed): manifest profiles are the only override cargo is
-# guaranteed to honor here — both CARGO_PROFILE_* env and a CARGO_HOME
-# config profile were measured as 0.2s no-ops through the cargo-lambda
-# invocation. Idempotent via marker. (Deflate-9 repack: ~1KB no-op;
-# cargo-lambda already packs tightly.)
+# Thin LTO + one codegen unit + abort/strip: keeps the 15 MiB zip bar without
+# the fat-LTO serial link that dominated the 2026-08-06 3936s stage:build.
+# Appended to the BUILD-SIDE fold workspace manifest (disposable build input,
+# never committed). Manifest profiles are the only override cargo-lambda
+# honors here — CARGO_PROFILE_* env and a CARGO_HOME config profile were
+# measured as 0.2s no-ops. Idempotent via marker.
 FOLD_MANIFEST="/build/schema-infra/fold/Cargo.toml"
-if ! grep -q "^# schema-lambda-size-profile" "$FOLD_MANIFEST" 2>/dev/null; then
-    cat >> "$FOLD_MANIFEST" <<'CFG'
+schema_lambda_apply_size_profile "$FOLD_MANIFEST"
+schema_lambda_export_profile_rustflags
 
-# schema-lambda-size-profile (appended at build time by
-# scripts/lambda-container-build.sh; never committed to fold)
-[profile.release]
-lto = "fat"
-codegen-units = 1
-CFG
-fi
-
-yum install -y gcc gcc-c++ cmake3 openssl-devel pkg-config tar gzip bzip2-libs perl git python3 > /dev/null 2>&1
+schema_lambda_stage yum schema_lambda_ensure_build_packages
 
 # Cargo needs to fetch private cross-repo git deps (e.g. exemem_common
 # from EdgeVector/exemem-infra). Conditional on GH_PAT so local builds
@@ -64,7 +57,10 @@ if [ -n "${GH_PAT:-}" ]; then
 fi
 
 if [ ! -x /build/schema-infra/.docker-cache/cargo/bin/cargo ]; then
-    curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1 | tail -1
+    schema_lambda_stage rustup \
+        bash -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1 | tail -1'
+else
+    echo "stage:rustup skipped (cargo already cached)"
 fi
 export PATH="/build/schema-infra/.docker-cache/cargo/bin:$PATH"
 
@@ -84,15 +80,7 @@ export PATH="/build/schema-infra/.docker-cache/cargo/bin:$PATH"
 # (always on PATH, not bind-mounted, no CARGO_HOME dependency), sha256-pinned
 # so a tampered/rotated asset fails the build instead of shipping silently.
 # Bump cl_ver + cl_sha together; the sha is published at <asset>.sha256.
-if ! command -v cargo-lambda >/dev/null 2>&1; then
-    cl_ver=1.9.1
-    cl_sha=ff97518ea2b3c094fb385563f0784fef9191efcdc775101f4f80613820c050ec
-    cl_url="https://github.com/cargo-lambda/cargo-lambda/releases/download/v${cl_ver}/cargo-lambda-v${cl_ver}.x86_64-unknown-linux-musl.tar.gz"
-    curl -fsSL "$cl_url" -o /tmp/cargo-lambda.tar.gz
-    echo "${cl_sha}  /tmp/cargo-lambda.tar.gz" | sha256sum -c -
-    tar -xzf /tmp/cargo-lambda.tar.gz -C /usr/local/bin cargo-lambda
-    chmod +x /usr/local/bin/cargo-lambda
-fi
+schema_lambda_stage cargo-lambda schema_lambda_ensure_cargo_lambda
 
 # --locked: build schema_service against fold's committed Cargo.lock instead
 # of re-resolving. Without it the AL2023 build picks up whatever the registry
@@ -122,15 +110,16 @@ mkdir -p "$CARGO_TARGET_DIR" "$LAMBDA_DIR"
 # Keep CARGO_TARGET_DIR as an environment setting. cargo-lambda 1.9.1 forwards
 # its --target-dir CLI flag to `cargo metadata`, but that Cargo subcommand does
 # not accept --target-dir and the deploy-pipeline fails before compilation.
-cargo lambda build \
-    --profile "$BUILD_PROFILE" \
-    --output-format zip \
-    --lambda-dir "$LAMBDA_DIR" \
-    --target x86_64-unknown-linux-gnu \
-    --compiler cargo \
-    --locked \
-    -p schema_service_server_lambda \
-    --features fastembed
+schema_lambda_stage cargo_build \
+    cargo lambda build \
+        --profile "$BUILD_PROFILE" \
+        --output-format zip \
+        --lambda-dir "$LAMBDA_DIR" \
+        --target x86_64-unknown-linux-gnu \
+        --compiler cargo \
+        --locked \
+        -p schema_service_server_lambda \
+        --features fastembed
 
 # Repack at maximum deflate. cargo-lambda zips at the default level; the
 # bootstrap binary is already stripped, so the remaining budget lever with
@@ -154,4 +143,5 @@ else:
     print(f"repack not smaller ({before} -> {after}); keeping original")
 PY
 fi
+schema_lambda_check_zip_size "$ZIP_OUT"
 chmod -R a+rwX "$LAMBDA_DIR" 2>/dev/null || true
