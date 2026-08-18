@@ -665,9 +665,9 @@ exports.handler = async (event) => {
       "SCHEMA_MUTATION_GATE_HMAC_SECRET",
       mutationGateHmacSecret.secretValue.unsafeUnwrap(),
     );
-    if (environment.isDev) {
-      schemaServiceFn.addEnvironment("SCHEMA_MUTATION_GATE_ENFORCE", "true");
-    }
+    // Enforced in every environment since 2026-08-18 (Tom-approved prod
+    // cutover, decision-2026-08-18-schema-pow-prod-cutover-execute).
+    schemaServiceFn.addEnvironment("SCHEMA_MUTATION_GATE_ENFORCE", "true");
 
     // =====================================================
     // Cross-stack auth wire — `GET /v1/snapshot` validates
