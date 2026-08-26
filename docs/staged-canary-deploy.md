@@ -24,7 +24,7 @@ Lambda is multi-tenant. **10% weighted alias traffic** is the serverless stand-i
 | `CANARY_WEIGHT` | `0.1` | Fraction of traffic on new version |
 | `LASTGIT_DEPLOY_SKIP_PROD` | unset | Stop after successful dev smoke |
 | `DEPLOY_FREEZE` | unset | Skip deploys |
-| `SCHEMA_CANARY_ALARM_NAMES` | empty | Optional CW alarms for soak gate |
+| `SCHEMA_CANARY_ALARM_NAMES` | `schema-mutation-gate-hourly-quota-prod schema-mutation-gate-internal-error-prod` | Prod soak alarms. Unset or empty still uses this pair — never a time-only gate. |
 
 ## R2-backed Schema Store
 

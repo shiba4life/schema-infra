@@ -163,9 +163,14 @@ PY
 canary_alarms_ok() {
   local region="$1"
   # Production promotion must never degrade to a time-only gate. Operators
-  # may override this set, but an empty override still falls back to the two
-  # alarms provisioned by SchemaServiceStack-prod.
-  local names="${SCHEMA_CANARY_ALARM_NAMES:-schema-mutation-gate-hourly-quota-prod schema-mutation-gate-internal-error-prod}"
+  # may override this set, but an empty/unset override still falls back to
+  # the two alarms provisioned by SchemaServiceStack-prod.
+  local names
+  if [ -z "${SCHEMA_CANARY_ALARM_NAMES:-}" ]; then
+    names="schema-mutation-gate-hourly-quota-prod schema-mutation-gate-internal-error-prod"
+  else
+    names="$SCHEMA_CANARY_ALARM_NAMES"
+  fi
   local name state
   for name in $names; do
     state=$(aws cloudwatch describe-alarms --alarm-names "$name" --region "$region" \
