@@ -3,8 +3,22 @@
 # Safe to run every 15m via launchd. No-ops if no canary-state.json.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+ROOT="$(pwd)"
+# Refresh this checkout to canonical main before sourcing helpers, then
+# re-exec so a previously stale launchd clone runs current ticker code.
+# shellcheck source=scripts/deploy/canary-run-root.sh
+source "$ROOT/scripts/deploy/canary-run-root.sh"
+if [ "${CANARY_RUN_ROOT_REFRESHED:-}" != "1" ]; then
+  before="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo none)"
+  canary_refresh_run_root "$ROOT"
+  export CANARY_RUN_ROOT_REFRESHED=1
+  after="$(git -C "$ROOT" rev-parse HEAD)"
+  if [ "$before" != "$after" ]; then
+    exec /bin/bash "$ROOT/.lastgit/canary-ticker.sh"
+  fi
+fi
 # shellcheck source=scripts/deploy/canary-lib.sh
-source "$(pwd)/scripts/deploy/canary-lib.sh"
+source "$ROOT/scripts/deploy/canary-lib.sh"
 
 if [ ! -f "$STATE_FILE" ]; then
   exit 0

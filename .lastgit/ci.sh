@@ -23,6 +23,7 @@ echo "== canary helper tests =="
 bash scripts/deploy/test-code-publish.sh
 bash scripts/deploy/test-canary-weight-pin.sh
 bash scripts/deploy/test-canary-alarm-gate.sh
+bash scripts/deploy/test-canary-run-root.sh
 bash scripts/deploy/test-prove-mutation-gate.sh
 echo "== compile-recipe tests =="
 bash scripts/deploy/test-lambda-container-build.sh
